@@ -72,6 +72,7 @@ opt.add_argument("--system", help="(eperimental) Build qemu-system", action='sto
 opt.add_argument("--cc", help="C compiler (default clang-8)", action='store', default="clang")
 opt.add_argument("--cxx", help="C++ compiler (default clang++-8)", action='store', default="clang++")
 opt.add_argument("--cross", help="Cross C compiler for libqasan", action='store')
+opt.add_argument("--python", help="Path to python3 interpreter. (default /usr/bin/python3).", action='store', default="/usr/bin/python3")
 
 args = opt.parse_args()
 
@@ -187,6 +188,17 @@ if shutil.which(cross_cc) is None:
     print("")
     exit(1)
 
+if args.python is None:
+    python_path = "/usr/bin/python3"
+else:
+    python_path = args.python
+print("Python path : {}".format(python_path))
+if shutil.which(python_path) is None:
+    print("ERROR: {} not found".format(python_path))
+    print("Specify the path to the python interpreter with --python")
+    print("")
+    exit(1)
+
 if not args.system:
     '''if not args.asan_dso:
         print("ERROR: usermode QASan still depends on ASan.")
@@ -202,11 +214,12 @@ if not args.system:
         print("If you haven't did it yet, on Ubuntu 18.04 it is PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig")
         print("")
 
+    # FIXME: support compile_commands generation
     cmd = """cd '%s' ; ./configure --target-list="%s-linux-user" --disable-system --enable-pie \
       --cc="%s" --cxx="%s" %s --extra-cflags="-O3 -ggdb %s" --extra-ldflags="%s" \
-      --enable-linux-user --disable-gtk --disable-sdl --disable-vnc --disable-strip""" \
+      --enable-linux-user --disable-gtk --disable-sdl --disable-vnc --disable-strip --python="%s" """ \
       % (os.path.join(dir_path, "qemu"), arch, args.cc, args.cxx, cpu_qemu_flag,
-   extra_c_flags, extra_ld_flags)
+   extra_c_flags, extra_ld_flags, python_path)
     print (cmd)
     assert (os.system(cmd) == 0)
 
