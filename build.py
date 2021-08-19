@@ -34,7 +34,7 @@ DESCR = """QEMU-AddressSanitizer Builder
 Copyright (C) 2019 Andrea Fioraldi <andreafioraldi@gmail.com>
 """
 
-EPILOG="""Note that the ASan DSO must refer to the host arch in a coherent way
+EPILOG = """Note that the ASan DSO must refer to the host arch in a coherent way
 with TARGET_BITS. For example, if the target is arm32 you have to provide the
 i386 ASan DSO, if teh target if x86_64 you have to provide the x86_64 DSO.
 As example, on Ubuntu 18.04, it is:
@@ -43,17 +43,17 @@ As example, on Ubuntu 18.04, it is:
 """
 
 ARCHS = {
-  "x86_64": "x86_64",
-  "amd64": "x86_64",
-  "x86": "i386",
-  "i386": "i386",
-  "arm": "arm",
-  "arm64": "aarch64",
-  "aarch64": "aarch64",
-  #"mips": "mips",
-  #"mips64": "mips64",
-  #"mipsel": "mipsel",
-  #"mips64el": "mips64el",
+    "x86_64": "x86_64",
+    "amd64": "x86_64",
+    "x86": "i386",
+    "i386": "i386",
+    "arm": "arm",
+    "arm64": "aarch64",
+    "aarch64": "aarch64",
+    #"mips": "mips",
+    #"mips64": "mips64",
+    #"mipsel": "mipsel",
+    #"mips64el": "mips64el",
 }
 
 ARCHS_32 = ["i386", "arm", "mips", "mipsel"]
@@ -63,18 +63,41 @@ ARCHS_CROSS.remove("x86_64")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-opt = argparse.ArgumentParser(description=DESCR, epilog=EPILOG, formatter_class=argparse.RawTextHelpFormatter)
-opt.add_argument("--arch", help="Set target architecture (default x86_64)", action='store', default="x86_64")
+opt = argparse.ArgumentParser(description=DESCR,
+                              epilog=EPILOG,
+                              formatter_class=argparse.RawTextHelpFormatter)
+opt.add_argument("--arch",
+                 help="Set target architecture (default x86_64)",
+                 action='store',
+                 default="x86_64")
 opt.add_argument('--asan-dso', help="Path to ASan DSO", action='store')
 opt.add_argument("--clean", help="Clean builded files", action='store_true')
 opt.add_argument("--debug", help="Compile debug libqasan", action='store_true')
-opt.add_argument("--system", help="(eperimental) Build qemu-system", action='store_true')
-opt.add_argument("--cc", help="C compiler (default clang-8)", action='store', default="clang")
-opt.add_argument("--cxx", help="C++ compiler (default clang++-8)", action='store', default="clang++")
-opt.add_argument("--cross", help="Cross C compiler for libqasan", action='store')
-opt.add_argument("--python", help="Path to python3 interpreter. (default /usr/bin/python3).", action='store', default="/usr/bin/python3")
+opt.add_argument("--system",
+                 help="(eperimental) Build qemu-system",
+                 action='store_true')
+opt.add_argument("--cc",
+                 help="C compiler (default clang-8)",
+                 action='store',
+                 default="clang")
+opt.add_argument("--cxx",
+                 help="C++ compiler (default clang++-8)",
+                 action='store',
+                 default="clang++")
+opt.add_argument("--cross",
+                 help="Cross C compiler for libqasan",
+                 action='store')
+opt.add_argument(
+    "--python",
+    help="Path to python3 interpreter. (default /usr/bin/python3).",
+    action='store',
+    default="/usr/bin/python3")
+opt.add_argument("--bear",
+                 help="path to bear to generate compile_commands.json file",
+                 action='store')
 
 args = opt.parse_args()
+
 
 def try_remove(path):
     print("Deleting", path)
@@ -82,6 +105,7 @@ def try_remove(path):
         os.remove(path)
     except:
         pass
+
 
 if args.clean:
     print("Cleaning...")
@@ -111,10 +135,11 @@ if shutil.which(args.cxx) is None and not os.path.isfile(args.cxx):
     print("")
     exit(1)
 
+
 def deintercept(asan_dso, output_dso):
     global arch
     print("Patching", asan_dso)
-    
+
     try:
         import lief
     except ImportError:
@@ -122,12 +147,13 @@ def deintercept(asan_dso, output_dso):
         print("   $ pip3 install lief --user")
         print("")
         exit(1)
-    
+
     lib = lief.parse(asan_dso)
 
     names = []
     for index, symbol in enumerate(lib.symbols):
-        if symbol.type == lief.ELF.SYMBOL_TYPES.FUNC and symbol.name.startswith("__interceptor_"):
+        if symbol.type == lief.ELF.SYMBOL_TYPES.FUNC and symbol.name.startswith(
+                "__interceptor_"):
             names.append(lib.symbols[index].name[len("__interceptor_"):])
 
     #names = ["malloc", "calloc", "realloc", "valloc", "pvalloc", "memalign", "posix_memalign", "free"]
@@ -138,6 +164,7 @@ def deintercept(asan_dso, output_dso):
             lib.symbols[index].name = "__qasan_" + symbol.name
 
     lib.write(output_dso)
+
 
 arch = ARCHS[args.arch]
 
@@ -151,11 +178,14 @@ if args.asan_dso:
 
     output_dso = os.path.join(dir_path, os.path.basename(args.asan_dso))
     lib_dso = os.path.basename(args.asan_dso)
-    if lib_dso.startswith("lib"): lib_dso = lib_dso[3:]
-    if lib_dso.endswith(".so"): lib_dso = lib_dso[:-3]
+    if lib_dso.startswith("lib"):
+        lib_dso = lib_dso[3:]
+    if lib_dso.endswith(".so"):
+        lib_dso = lib_dso[:-3]
 
-    extra_ld_flags = "-L %s -l%s -Wl,-rpath,.,-rpath,%s" % (dir_path, lib_dso, dir_path)
-    
+    extra_ld_flags = "-L %s -l%s -Wl,-rpath,.,-rpath,%s" % (dir_path, lib_dso,
+                                                            dir_path)
+
     deintercept(args.asan_dso, output_dso)
 else:
     # if the ASan DSO is not specified, use asan-giovese
@@ -164,13 +194,14 @@ else:
         print("Please specify the ASan DSO with --asan-dso")
         print("")
         exit(1)
-    
+
     print("")
     print("WARNING: QASan with asan-giovese is an experimental feature!")
     print("")
-    
+
     extra_ld_flags = ""
-    extra_c_flags = "-DASAN_GIOVESE=1 -DTARGET_ULONG=target_ulong -I " + os.path.join(dir_path, "asan-giovese", "interval-tree")
+    extra_c_flags = "-DASAN_GIOVESE=1 -DTARGET_ULONG=target_ulong -I " + os.path.join(
+        dir_path, "asan-giovese", "interval-tree")
 
 cross_cc = args.cc
 if arch in ARCHS_CROSS:
@@ -178,7 +209,8 @@ if arch in ARCHS_CROSS:
         cross_cc = "%s-linux-gnu-gcc" % arch
         print("")
         print("WARNING: The selected arch needs a cross compiler for libqasan")
-        print("We selected %s by default, use --cross to specify a custom one" % cross_cc)
+        print("We selected %s by default, use --cross to specify a custom one" %
+              cross_cc)
         print("")
     else:
         cross_cc = args.cross
@@ -199,38 +231,64 @@ if shutil.which(python_path) is None:
     print("")
     exit(1)
 
+bear_path = ""
+if args.bear is not None:
+    print("Bear make configured. path : {}".format(args.bear))
+    bear_path = args.bear
+
+if (len(bear_path) > 0 and shutil.which(bear_path)) is None:
+    print("ERROR : {} not found".format(bear_path))
+    print("Specify the path to bear if you require it.")
+    print("")
+    exit(1)
+
 if not args.system:
     '''if not args.asan_dso:
         print("ERROR: usermode QASan still depends on ASan.")
         print("Please specify the ASan DSO with --asan-dso")
         print("")
         exit(1)'''
-    
+
     cpu_qemu_flag = ""
     if arch in ARCHS_32 and args.asan_dso:
         cpu_qemu_flag = "--cpu=i386"
         print("")
-        print("WARNING: To do a 32 bit build, you have to install i386 libraries and set PKG_CONFIG_PATH")
-        print("If you haven't did it yet, on Ubuntu 18.04 it is PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig")
+        print(
+            "WARNING: To do a 32 bit build, you have to install i386 libraries and set PKG_CONFIG_PATH"
+        )
+        print(
+            "If you haven't did it yet, on Ubuntu 18.04 it is PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig"
+        )
         print("")
 
-    # FIXME: support compile_commands generation
-    cmd = """cd '%s' ; ./configure --target-list="%s-linux-user" --disable-system --enable-pie \
+    # support compile_commands generation
+
+    # clean up any previous build artefacts
+    if os.path.exists(os.path.join(dir_path, "compile_commands.json")):
+        os.unlink(os.path.join(dir_path, "compile_commands.json"))
+    if (os.path.exists(os.path.join(dir_path, "qemu",
+                                    "compile_commands.json"))):
+        os.unlink(os.path.join(dir_path, "qemu", "compile_commands.json"))
+
+    cmd = """cd '%s' ; make clean ; %s ./configure --target-list="%s-linux-user" --disable-system --enable-pie \
       --cc="%s" --cxx="%s" %s --extra-cflags="-O3 -ggdb %s" --extra-ldflags="%s" \
       --enable-linux-user --disable-gtk --disable-sdl --disable-vnc --disable-strip --python="%s" """ \
-      % (os.path.join(dir_path, "qemu"), arch, args.cc, args.cxx, cpu_qemu_flag,
-   extra_c_flags, extra_ld_flags, python_path)
-    print (cmd)
+      % (os.path.join(dir_path, "qemu"), bear_path, arch, args.cc, args.cxx, cpu_qemu_flag,
+    extra_c_flags, extra_ld_flags, python_path)
+    print(cmd)
     assert (os.system(cmd) == 0)
 
-    cmd = """cd '%s' ; make -j `nproc`""" % (os.path.join(dir_path, "qemu"))
-    print (cmd)
+    cmd = """cd '%s' ; %s make -j `nproc`""" % (os.path.join(dir_path,
+                                                             "qemu"), bear_path)
+    print(cmd)
     assert (os.system(cmd) == 0)
 
     shutil.copy2(
-      os.path.join(dir_path, "qemu", arch + "-linux-user", "qemu-" + arch),
-      os.path.join(dir_path, "qasan-qemu")
-    )
+        os.path.join(dir_path, "qemu", arch + "-linux-user", "qemu-" + arch),
+        os.path.join(dir_path, "qasan-qemu"))
+    if (len(bear_path) > 0):
+        shutil.move(os.path.join(dir_path, "qemu", "compile_commands.json"),
+                    os.path.join(dir_path, "compile_commands.json"))
 
     libqasan_cflags = "-Wno-int-to-void-pointer-cast -ggdb"
     if arch == "i386":
@@ -239,38 +297,47 @@ if not args.system:
     libqasan_target = ''
     if args.debug:
         libqasan_target = 'debug'
-    assert ( os.system("""cd '%s' ; make %s CC='%s' CFLAGS='%s'"""
-      % (os.path.join(dir_path, "libqasan"), libqasan_target, cross_cc,
-         libqasan_cflags)) == 0 )
+    assert (os.system("""cd '%s' ; make %s CC='%s' CFLAGS='%s'""" %
+                      (os.path.join(dir_path, "libqasan"), libqasan_target,
+                       cross_cc, libqasan_cflags)) == 0)
 
-    shutil.copy2(
-      os.path.join(dir_path, "libqasan", "libqasan.so"),
-      dir_path
-    )
+    shutil.copy2(os.path.join(dir_path, "libqasan", "libqasan.so"), dir_path)
 
     print("Successful build.")
     print("Test it with ./qasan /bin/ls")
     print("")
 else:
-    cmd = """cd '%s' ; ./configure --target-list="%s-softmmu" --enable-pie \
+
+    # clean up any previous build artefacts
+    if os.path.exists(os.path.join(dir_path, "compile_commands.json")):
+        os.unlink(os.path.join(dir_path, "compile_commands.json"))
+    if (os.path.exists(os.path.join(dir_path, "qemu",
+                                    "compile_commands.json"))):
+        os.unlink(os.path.join(dir_path, "qemu", "compile_commands.json"))
+
+    cmd = """cd '%s' ; make clean; %s ./configure --target-list="%s-softmmu" --enable-pie \
       --cc="%s" --cxx="%s" --extra-cflags="-O3 -ggdb %s" --extra-ldflags="%s" \
-      --disable-linux-user --disable-sdl --disable-vnc --disable-strip""" \
-      % (os.path.join(dir_path, "qemu"), arch, args.cc, args.cxx,
-         extra_c_flags, extra_ld_flags)
-    print (cmd)
+      --disable-linux-user --disable-sdl --disable-vnc --disable-strip --python="%s" """ \
+      % (os.path.join(dir_path, "qemu"), bear_path, arch, args.cc, args.cxx,
+         extra_c_flags, extra_ld_flags, python_path)
+    print(cmd)
     assert (os.system(cmd) == 0)
-    
+
     cmd = """cd '%s' ; make -j `nproc`""" % (os.path.join(dir_path, "qemu"))
-    print (cmd)
+    print(cmd)
     assert (os.system(cmd) == 0)
-    
+
     if os.path.exists(os.path.join(dir_path, "qasan-system")):
         os.unlink(os.path.join(dir_path, "qasan-system"))
-    
+
+    if (len(bear_path) > 0):
+        shutil.move(os.path.join(dir_path, "qemu", "compile_commands.json"),
+                    os.path.join(dir_path, "compile_commands.json"))
+
     os.symlink(
-      os.path.join(dir_path, "qemu", arch + "-softmmu", "qemu-system-" + arch),
-      os.path.join(dir_path, "qasan-system")
-    )
+        os.path.join(dir_path, "qemu", arch + "-softmmu",
+                     "qemu-system-" + arch),
+        os.path.join(dir_path, "qasan-system"))
 
     print("Successful build.")
     print("")
