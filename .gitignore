@@ -7,3 +7,4 @@ qemu-x86_64
 libqasan.so
 libqasan/libqasan.so
 .vscode/**
+compile_commands.json
